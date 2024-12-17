@@ -5,7 +5,7 @@ import { Delivery } from './entities/delivery.entity';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Truck } from '../trucks/entities/truck.entity';
-import * as moment from 'moment-timezone';
+import moment from 'moment-timezone';
 import { Driver } from '../drivers/entities/driver.entity';
 import { Cron, CronExpression } from '@nestjs/schedule';
 
