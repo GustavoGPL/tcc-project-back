@@ -31,6 +31,18 @@ export class DeliveriesService {
         await delivery.save();
       }
     }
+
+    const deliveriesToUpdateCompleted = await this.deliveryModel.find({
+      status: 'Andamento', // Ou outro status que represente entregas em andamento
+      dataFim: { $lte: currentDate },
+    });
+
+    if (deliveriesToUpdateCompleted.length > 0) {
+      for (const delivery of deliveriesToUpdateCompleted) {
+        delivery.status = 'Concluída';
+        await delivery.save();
+      }
+    }
   }
 
   async create(createDeliveryDto: CreateDeliveryDto) {
@@ -46,11 +58,9 @@ export class DeliveriesService {
       ...rest
     } = createDeliveryDto;
 
-    // 1. Verifique se o motorista já tem entrega para a região Nordeste
     if (regiao === 'Nordeste') {
       const motorista = await this.driverModel.findById(motoristaId);
 
-      // Verifica se o motorista já tem uma entrega para a região Nordeste
       if (motorista.entregasNordeste >= 1) {
         throw new ConflictException(
           'Este motorista já possui uma entrega para o Nordeste.',
@@ -91,7 +101,8 @@ export class DeliveriesService {
     currentMonthEnd.setHours(23, 59, 59, 999);
 
     const adjustedDataInicio = moment(dataInicio)
-      .tz('America/Sao_Paulo', true)
+      .tz('America/Sao_Paulo')
+      .set({ hour: 5, minute: 0 })
       .toDate();
 
     const monthStart = moment(adjustedDataInicio).startOf('month').toDate();
@@ -111,19 +122,23 @@ export class DeliveriesService {
     let status = 'AguardandoInício';
 
     const currentDate = moment().tz('America/Sao_Paulo').toDate();
+
     if (adjustedDataInicio <= currentDate) {
       status = 'Andamento';
     }
 
-    const adjustedDataFim = moment(dataFim).tz('America/Sao_Paulo').toDate();
+    const adjustedDataFim = moment(dataFim)
+      .tz('America/Sao_Paulo')
+      .set({ hour: 14, minute: 0 })
+      .toDate();
 
     const conflictingDelivery = await this.deliveryModel.findOne({
       motoristaId,
-      status: 'AguardandoInício', // Verifica entregas no status 'AguardandoInício'
+      status: 'AguardandoInício',
       $or: [
         {
-          dataInicio: { $lt: adjustedDataFim }, // A nova entrega começa antes da data de fim da entrega existente
-          dataFim: { $gt: adjustedDataInicio }, // E a nova entrega termina depois da data de início da entrega existente
+          dataInicio: { $lt: adjustedDataFim },
+          dataFim: { $gt: adjustedDataInicio },
         },
       ],
     });
@@ -134,7 +149,6 @@ export class DeliveriesService {
       );
     }
 
-    // Verifica se a dataInicio é anterior ao início do dia atual (dia vigente no momento da criação)
     const currentDayStart = moment()
       .tz('America/Sao_Paulo')
       .startOf('day')
@@ -146,21 +160,18 @@ export class DeliveriesService {
       );
     }
 
-    // Verifica se a dataFim é anterior à dataInicio
     if (adjustedDataFim < adjustedDataInicio) {
       throw new ConflictException(
         'A data de término da entrega não pode ser anterior à data de início.',
       );
     }
 
-    // Verifica se a dataFim é anterior ao início do dia atual
     if (adjustedDataFim < currentDayStart) {
       throw new ConflictException(
         'A data de término da entrega não pode ser em um dia que já passou.',
       );
     }
 
-    // 2. Cria a entrega
     const delivery = new this.deliveryModel({
       ...rest,
       motoristaId,
@@ -186,8 +197,15 @@ export class DeliveriesService {
 
     const deliveriesInMonthForDriver = await this.deliveryModel.countDocuments({
       motoristaId,
-      status: 'AguardandoInício',
-      dataInicio: { $gte: monthStart, $lte: monthEnd },
+      status: { $in: ['AguardandoInício', 'Concluída'] },
+      $or: [
+        { dataInicio: { $lte: monthEnd, $gte: monthStart } },
+        { dataFim: { $gte: monthStart, $lte: monthEnd } },
+        {
+          dataInicio: { $lte: monthStart },
+          dataFim: { $gte: monthEnd },
+        },
+      ],
     });
 
     if (deliveriesInMonthForDriver >= 2) {
@@ -209,21 +227,23 @@ export class DeliveriesService {
 
     await delivery.save();
 
-    // 3. Atualiza o contador de entregasNordeste apenas se a entrega for para a região Nordeste
     if (regiao === 'Nordeste') {
       await this.driverModel.findByIdAndUpdate(motoristaId, {
         $inc: { entregasNordeste: 1 },
       });
     }
 
-    // Atualiza o caminhão e motorista após a criação da entrega
     await this.truckModel.findByIdAndUpdate(createDeliveryDto.caminhaoId, {
-      status: 'Em uso',
-      entregaId: delivery._id,
+      status: delivery.status === 'Andamento' ? 'Em uso' : 'Disponível',
+      entregaId:
+        delivery.status === 'Andamento' ? delivery._id : truck.entregaId,
     });
 
+    const motoristaStatus =
+      delivery.status === 'AguardandoInício' ? 'Disponível' : 'Indisponível';
+
     await this.driverModel.findByIdAndUpdate(delivery.motoristaId, {
-      $set: { status: 'Indisponível' },
+      $set: { status: motoristaStatus },
     });
 
     return delivery;
@@ -276,17 +296,23 @@ export class DeliveriesService {
       });
     }
 
-    return this.deliveryModel
-      .deleteOne({
-        _id: id,
-      })
-      .exec();
+    if (delivery.regiao === 'Nordeste' && delivery.status !== 'Concluída') {
+      await this.driverModel.findByIdAndUpdate(delivery.motoristaId, {
+        $inc: { entregasNordeste: -1 },
+      });
+    }
 
-    // return this.deliveryModel.findByIdAndUpdate(
-    //   id,
-    //   { status: 'Removida' },
-    //   { new: true },
-    // );
+    // return this.deliveryModel
+    //   .deleteOne({
+    //     _id: id,
+    //   })
+    //   .exec();
+
+    return this.deliveryModel.findByIdAndUpdate(
+      id,
+      { status: 'Removida' },
+      { new: true },
+    );
   }
 
   async finalizeDelivery(id: string) {
@@ -297,7 +323,7 @@ export class DeliveriesService {
 
     if (delivery.status !== 'Andamento') {
       throw new ConflictException(
-        'A entrega só pode ser finalizada se estiver em andamento.',
+        'A entrega só pode ser concluída se estiver em andamento.',
       );
     }
 

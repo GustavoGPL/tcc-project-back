@@ -18,9 +18,6 @@ export class Driver extends Document {
   @Prop({ default: 0 })
   entregasNordeste: number;
 
-  @Prop({ default: 0 })
-  entregasNoMes: number;
-
   @Prop({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Delivery',

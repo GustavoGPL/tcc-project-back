@@ -1,6 +1,6 @@
 import { PartialType } from '@nestjs/mapped-types';
 import { CreateDriverDto } from './create-driver.dto';
-import { IsMongoId, IsNumber, IsOptional, IsString } from 'class-validator';
+import { IsMongoId, IsOptional, IsString } from 'class-validator';
 
 export class UpdateDriverDto extends PartialType(CreateDriverDto) {
   @IsOptional()
@@ -14,10 +14,6 @@ export class UpdateDriverDto extends PartialType(CreateDriverDto) {
   @IsOptional()
   @IsString()
   telefone?: string;
-
-  @IsOptional()
-  @IsNumber()
-  entregasNoMes?: number;
 
   @IsOptional()
   @IsMongoId()
