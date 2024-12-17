@@ -23,7 +23,10 @@ export class Delivery extends Document {
   @Prop({ required: true })
   regiao: string;
 
-  @Prop({ default: 'Pendente', enum: ['Pendente', 'Concluída'] })
+  @Prop({
+    default: 'Andamento',
+    enum: ['Andamento', 'Concluída', 'Removida', 'AguardandoInício'],
+  })
   status: string;
 
   @Prop({ required: true })

@@ -12,6 +12,9 @@ export class Driver extends Document {
   @Prop({ required: true })
   telefone: string;
 
+  @Prop({ default: 'Disponível', enum: ['Disponível', 'Indisponível'] })
+  status: string;
+
   @Prop({ default: 0 })
   entregasNordeste: number;
 

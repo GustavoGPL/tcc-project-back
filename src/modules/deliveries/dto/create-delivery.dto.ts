@@ -22,12 +22,12 @@ export class CreateDeliveryDto {
   valorCarga: number;
 
   @IsString()
-  localChegada: string
+  localChegada: string;
 
   @IsString()
   regiao: string;
 
-  @IsEnum(['Pendente', 'Concluída'])
+  @IsEnum(['Andamento', 'Concluída', 'Removida', 'AguardandoInício'])
   status: string;
 
   @IsDate()

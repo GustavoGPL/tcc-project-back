@@ -30,6 +30,11 @@ export class DeliveriesController {
     return this.deliveriesService.findOne(id);
   }
 
+  @Put(':id/finalize')
+  async finalize(@Param('id') id: string) {
+    return this.deliveriesService.finalizeDelivery(id);
+  }
+
   @Put(':id')
   update(
     @Param('id') id: string,

@@ -38,7 +38,7 @@ export class UpdateDeliveryDto extends PartialType(CreateDeliveryDto) {
   regiao?: string;
 
   @IsOptional()
-  @IsEnum(['Pendente', 'Concluída'])
+  @IsEnum(['Andamento', 'Concluída', 'Removida', 'AguardandoInício'])
   status?: string;
 
   @IsOptional()
