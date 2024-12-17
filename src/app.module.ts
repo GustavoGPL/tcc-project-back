@@ -10,7 +10,10 @@ import { DeliveriesModule } from './modules/deliveries/deliveries.module';
     ConfigModule.forRoot({
       isGlobal: true,
     }),
-    MongooseModule.forRoot(process.env.MONGODB_URI),
+    MongooseModule.forRoot(
+      process.env.MONGODB_URI ||
+        'mongodb+srv://gustavoguillan23:oSNUv6MfGSLyidrz@cluster0.p4nfbig.mongodb.net/devgustavo',
+    ),
     TrucksModule,
     DriversModule,
     DeliveriesModule,
