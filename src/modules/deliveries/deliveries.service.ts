@@ -307,17 +307,17 @@ export class DeliveriesService {
       });
     }
 
-    return this.deliveryModel
-      .deleteOne({
-        _id: id,
-      })
-      .exec();
+    // return this.deliveryModel
+    //   .deleteOne({
+    //     _id: id,
+    //   })
+    //   .exec();
 
-    // return this.deliveryModel.findByIdAndUpdate(
-    //   id,
-    //   { status: 'Removida' },
-    //   { new: true },
-    // );
+    return this.deliveryModel.findByIdAndUpdate(
+      id,
+      { status: 'Removida' },
+      { new: true },
+    );
   }
 
   async finalizeDelivery(id: string) {
