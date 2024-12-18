@@ -19,17 +19,19 @@ export class DeliveriesService {
 
   @Cron(CronExpression.EVERY_MINUTE)
   async updateDeliveryStatus() {
-    const currentDate = moment().tz('America/Sao_Paulo').toDate().toISOString();
+    const currentDate = moment()
+      .tz('America/Sao_Paulo')
+      .startOf('day')
+      .toISOString();
+
     const deliveriesToUpdate = await this.deliveryModel.find({
       status: 'AguardandoInício',
       dataInicio: { $lte: currentDate },
     });
 
-    if (deliveriesToUpdate.length > 0) {
-      for (const delivery of deliveriesToUpdate) {
-        delivery.status = 'Andamento';
-        await delivery.save();
-      }
+    for (const delivery of deliveriesToUpdate) {
+      delivery.status = 'Andamento';
+      await delivery.save();
     }
 
     const deliveriesToUpdateCompleted = await this.deliveryModel.find({
@@ -37,11 +39,9 @@ export class DeliveriesService {
       dataFim: { $lte: currentDate },
     });
 
-    if (deliveriesToUpdateCompleted.length > 0) {
-      for (const delivery of deliveriesToUpdateCompleted) {
-        delivery.status = 'Concluída';
-        await delivery.save();
-      }
+    for (const delivery of deliveriesToUpdateCompleted) {
+      delivery.status = 'Concluída';
+      await delivery.save();
     }
   }
 
@@ -92,18 +92,21 @@ export class DeliveriesService {
     const isValiosa = valorComTaxa > 30000;
     const isCargaPerigosa = tipoCarga === 'Combustível';
 
-    const currentMonthStart = new Date();
-    currentMonthStart.setDate(1);
-    currentMonthStart.setHours(0, 0, 0, 0);
-
-    const currentMonthEnd = new Date(currentMonthStart);
-    currentMonthEnd.setMonth(currentMonthStart.getMonth() + 1);
-    currentMonthEnd.setHours(23, 59, 59, 999);
-
     const adjustedDataInicio = moment(dataInicio)
       .tz('America/Sao_Paulo')
-      .startOf('day') // Define para 00:00:00
+      .startOf('day')
       .toISOString();
+
+    const adjustedDataFim = moment(dataFim)
+      .tz('America/Sao_Paulo')
+      .endOf('day')
+      .toISOString();
+
+    if (adjustedDataFim < adjustedDataInicio) {
+      throw new ConflictException(
+        'A data de término da entrega não pode ser anterior à data de início.',
+      );
+    }
 
     const monthStart = moment(adjustedDataInicio).startOf('month').toDate();
     const monthEnd = moment(adjustedDataInicio).endOf('month').toDate();
@@ -121,16 +124,14 @@ export class DeliveriesService {
 
     let status = 'AguardandoInício';
 
-    const currentDate = moment().tz('America/Sao_Paulo').toDate().toISOString();
+    const currentDate = moment()
+      .tz('America/Sao_Paulo')
+      .startOf('day')
+      .toISOString();
 
     if (adjustedDataInicio <= currentDate) {
       status = 'Andamento';
     }
-
-    const adjustedDataFim = moment(dataFim)
-      .tz('America/Sao_Paulo')
-      .endOf('day') // Define para 23:59:59
-      .toISOString();
 
     const conflictingDelivery = await this.deliveryModel.findOne({
       motoristaId,
@@ -149,34 +150,6 @@ export class DeliveriesService {
       );
     }
 
-    const currentDayStart = moment()
-      .tz('America/Sao_Paulo')
-      .startOf('day') // Ajusta para 00:00 do dia atual
-      .toDate()
-      .toISOString();
-
-    if (
-      moment(adjustedDataInicio).isBefore(
-        moment().tz('America/Sao_Paulo').startOf('day'),
-      )
-    ) {
-      throw new ConflictException(
-        'A data de início da entrega não pode ser em um dia que já passou.',
-      );
-    }
-
-    if (adjustedDataFim < adjustedDataInicio) {
-      throw new ConflictException(
-        'A data de término da entrega não pode ser anterior à data de início.',
-      );
-    }
-
-    if (adjustedDataFim < currentDayStart) {
-      throw new ConflictException(
-        'A data de término da entrega não pode ser em um dia que já passou.',
-      );
-    }
-
     const delivery = new this.deliveryModel({
       ...rest,
       motoristaId,
@@ -192,44 +165,6 @@ export class DeliveriesService {
       status,
     });
 
-    const truck = await this.truckModel.findById(createDeliveryDto.caminhaoId);
-
-    if (truck && truck.entregaId) {
-      throw new ConflictException(
-        'Este caminhão já está associado a uma entrega',
-      );
-    }
-
-    const deliveriesInMonthForDriver = await this.deliveryModel.countDocuments({
-      motoristaId,
-      status: { $in: ['AguardandoInício', 'Concluída'] },
-      $or: [
-        { dataInicio: { $lte: monthEnd, $gte: monthStart } },
-        { dataFim: { $gte: monthStart, $lte: monthEnd } },
-        {
-          dataInicio: { $lte: monthStart },
-          dataFim: { $gte: monthEnd },
-        },
-      ],
-    });
-
-    if (deliveriesInMonthForDriver >= 2) {
-      throw new ConflictException(
-        'Este motorista já atingiu o limite de 2 entregas neste mês.',
-      );
-    }
-
-    const existingDeliveryForDriver = await this.deliveryModel.findOne({
-      motoristaId,
-      status: { $nin: ['Concluída', 'Removida', 'AguardandoInício'] },
-    });
-
-    if (existingDeliveryForDriver) {
-      throw new ConflictException(
-        'Este motorista já está associado a uma entrega em andamento',
-      );
-    }
-
     await delivery.save();
 
     if (regiao === 'Nordeste' && status === 'Andamento') {
@@ -240,8 +175,7 @@ export class DeliveriesService {
 
     await this.truckModel.findByIdAndUpdate(createDeliveryDto.caminhaoId, {
       status: delivery.status === 'Andamento' ? 'Em uso' : 'Disponível',
-      entregaId:
-        delivery.status === 'Andamento' ? delivery._id : truck.entregaId,
+      entregaId: delivery.status === 'Andamento' ? delivery._id : undefined,
     });
 
     const motoristaStatus =
