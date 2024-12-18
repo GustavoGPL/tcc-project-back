@@ -19,7 +19,7 @@ export class DeliveriesService {
 
   @Cron(CronExpression.EVERY_MINUTE)
   async updateDeliveryStatus() {
-    const currentDate = moment().tz('America/Sao_Paulo').toDate();
+    const currentDate = moment().tz('America/Sao_Paulo').toDate().toISOString();
     const deliveriesToUpdate = await this.deliveryModel.find({
       status: 'AguardandoInício',
       dataInicio: { $lte: currentDate },
@@ -102,8 +102,9 @@ export class DeliveriesService {
 
     const adjustedDataInicio = moment(dataInicio)
       .tz('America/Sao_Paulo')
-      .set({ hour: 5, minute: 0 })
-      .toDate();
+      .set({ hour: 5, minute: 0, second: 0, millisecond: 0 })
+      .toDate()
+      .toISOString();
 
     const monthStart = moment(adjustedDataInicio).startOf('month').toDate();
     const monthEnd = moment(adjustedDataInicio).endOf('month').toDate();
@@ -121,7 +122,7 @@ export class DeliveriesService {
 
     let status = 'AguardandoInício';
 
-    const currentDate = moment().tz('America/Sao_Paulo').toDate();
+    const currentDate = moment().tz('America/Sao_Paulo').toDate().toISOString();
 
     if (adjustedDataInicio <= currentDate) {
       status = 'Andamento';
@@ -129,8 +130,9 @@ export class DeliveriesService {
 
     const adjustedDataFim = moment(dataFim)
       .tz('America/Sao_Paulo')
-      .set({ hour: 14, minute: 0 })
-      .toDate();
+      .set({ hour: 14, minute: 0, second: 0, millisecond: 0 })
+      .toDate()
+      .toISOString();
 
     const conflictingDelivery = await this.deliveryModel.findOne({
       motoristaId,
@@ -152,7 +154,8 @@ export class DeliveriesService {
     const currentDayStart = moment()
       .tz('America/Sao_Paulo')
       .startOf('day')
-      .toDate();
+      .toDate()
+      .toISOString();
 
     if (adjustedDataInicio < currentDayStart) {
       throw new ConflictException(
@@ -227,7 +230,7 @@ export class DeliveriesService {
 
     await delivery.save();
 
-    if (regiao === 'Nordeste') {
+    if (regiao === 'Nordeste' && status === 'Andamento') {
       await this.driverModel.findByIdAndUpdate(motoristaId, {
         $inc: { entregasNordeste: 1 },
       });
