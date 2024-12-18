@@ -93,12 +93,12 @@ export class DeliveriesService {
     const isCargaPerigosa = tipoCarga === 'Combustível';
 
     const adjustedDataInicio = moment(dataInicio)
-      .tz('America/Sao_Paulo')
+      .tz('America/Sao_Paulo', true)
       .startOf('day')
       .toISOString();
 
     const adjustedDataFim = moment(dataFim)
-      .tz('America/Sao_Paulo')
+      .tz('America/Sao_Paulo', true)
       .endOf('day')
       .toISOString();
 
@@ -125,7 +125,7 @@ export class DeliveriesService {
     let status = 'AguardandoInício';
 
     const currentDate = moment()
-      .tz('America/Sao_Paulo')
+      .tz('America/Sao_Paulo', true)
       .startOf('day')
       .toISOString();
 
