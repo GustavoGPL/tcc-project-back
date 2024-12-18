@@ -102,8 +102,7 @@ export class DeliveriesService {
 
     const adjustedDataInicio = moment(dataInicio)
       .tz('America/Sao_Paulo')
-      .set({ hour: 5, minute: 0, second: 0, millisecond: 0 })
-      .toDate()
+      .startOf('day') // Define para 00:00:00
       .toISOString();
 
     const monthStart = moment(adjustedDataInicio).startOf('month').toDate();
@@ -130,8 +129,7 @@ export class DeliveriesService {
 
     const adjustedDataFim = moment(dataFim)
       .tz('America/Sao_Paulo')
-      .set({ hour: 14, minute: 0, second: 0, millisecond: 0 })
-      .toDate()
+      .endOf('day') // Define para 23:59:59
       .toISOString();
 
     const conflictingDelivery = await this.deliveryModel.findOne({
@@ -309,17 +307,17 @@ export class DeliveriesService {
       });
     }
 
-    // return this.deliveryModel
-    //   .deleteOne({
-    //     _id: id,
-    //   })
-    //   .exec();
+    return this.deliveryModel
+      .deleteOne({
+        _id: id,
+      })
+      .exec();
 
-    return this.deliveryModel.findByIdAndUpdate(
-      id,
-      { status: 'Removida' },
-      { new: true },
-    );
+    // return this.deliveryModel.findByIdAndUpdate(
+    //   id,
+    //   { status: 'Removida' },
+    //   { new: true },
+    // );
   }
 
   async finalizeDelivery(id: string) {
