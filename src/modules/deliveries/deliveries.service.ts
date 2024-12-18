@@ -94,13 +94,11 @@ export class DeliveriesService {
 
     const adjustedDataInicio = moment(dataInicio)
       .tz('America/Sao_Paulo')
-      .subtract(3, 'hours') // Subtrai 3 horas
       .startOf('day')
       .toISOString();
 
     const adjustedDataFim = moment(dataFim)
       .tz('America/Sao_Paulo')
-      .subtract(3, 'hours') // Subtrai 3 horas
       .endOf('day')
       .toISOString();
 
