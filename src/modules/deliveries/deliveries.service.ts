@@ -33,7 +33,7 @@ export class DeliveriesService {
     }
 
     const deliveriesToUpdateCompleted = await this.deliveryModel.find({
-      status: 'Andamento', // Ou outro status que represente entregas em andamento
+      status: 'Andamento',
       dataFim: { $lte: currentDate },
     });
 
@@ -153,7 +153,7 @@ export class DeliveriesService {
 
     const currentDayStart = moment()
       .tz('America/Sao_Paulo')
-      .startOf('day')
+      .set({ hour: 5, minute: 0, second: 0, millisecond: 0 })
       .toDate()
       .toISOString();
 
