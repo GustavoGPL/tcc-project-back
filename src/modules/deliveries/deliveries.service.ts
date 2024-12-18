@@ -153,11 +153,15 @@ export class DeliveriesService {
 
     const currentDayStart = moment()
       .tz('America/Sao_Paulo')
-      .set({ hour: 5, minute: 0, second: 0, millisecond: 0 })
+      .startOf('day') // Ajusta para 00:00 do dia atual
       .toDate()
       .toISOString();
 
-    if (adjustedDataInicio < currentDayStart) {
+    if (
+      moment(adjustedDataInicio).isBefore(
+        moment().tz('America/Sao_Paulo').startOf('day'),
+      )
+    ) {
       throw new ConflictException(
         'A data de início da entrega não pode ser em um dia que já passou.',
       );
