@@ -20,7 +20,7 @@ export class DeliveriesService {
   @Cron(CronExpression.EVERY_MINUTE)
   async updateDeliveryStatus() {
     const currentDate = moment()
-      .tz('America/Sao_Paulo')
+      .tz('America/Sao_Paulo', true)
       .startOf('day')
       .toISOString();
 
@@ -133,6 +133,20 @@ export class DeliveriesService {
       status = 'Andamento';
     }
 
+    // 3. Validações de conflitos e limites
+
+    if (adjustedDataInicio < currentDate) {
+      throw new ConflictException(
+        'A data de início da entrega não pode ser em um dia que já passou ou anterior ao horário atual.',
+      );
+    }
+
+    if (adjustedDataFim < adjustedDataInicio) {
+      throw new ConflictException(
+        'A data de término da entrega não pode ser anterior à data de início.',
+      );
+    }
+
     const conflictingDelivery = await this.deliveryModel.findOne({
       motoristaId,
       status: 'AguardandoInício',
@@ -147,6 +161,24 @@ export class DeliveriesService {
     if (conflictingDelivery) {
       throw new ConflictException(
         'Este motorista já possui uma entrega agendada ou em andamento no período da nova entrega.',
+      );
+    }
+
+    if (adjustedDataInicio < currentDate) {
+      throw new ConflictException(
+        'A data de início da entrega não pode ser em um dia que já passou.',
+      );
+    }
+
+    if (adjustedDataFim < adjustedDataInicio) {
+      throw new ConflictException(
+        'A data de término da entrega não pode ser anterior à data de início.',
+      );
+    }
+
+    if (adjustedDataFim < currentDate) {
+      throw new ConflictException(
+        'A data de término da entrega não pode ser em um dia que já passou.',
       );
     }
 
